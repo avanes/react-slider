@@ -171,7 +171,10 @@
        *  Callback called when the the slider is clicked (handle or bars).
        *  Receives the value at the clicked position as argument.
        */
-      onSliderClick: React.PropTypes.func
+      onSliderClick: React.PropTypes.func,
+
+      scalingFunction: React.PropTypes.func,
+      inverseScalingFunction: React.PropTypes.func
     },
 
     getDefaultProps: function () {
@@ -190,7 +193,13 @@
         pearling: false,
         disabled: false,
         snapDragDisabled: false,
-        invert: false
+        invert: false,
+        scalingFunction: function(x, constantBase) {
+          return x / constantBase;
+        },
+        inverseScalingFunction: function(x, constantBase) {
+          return 1;
+        }
       };
     },
 
@@ -295,13 +304,16 @@
     // calculates the offset of a handle in pixels based on its value.
     _calcOffset: function (value) {
       var ratio = (value - this.props.min) / (this.props.max - this.props.min);
-      return ratio * this.state.upperBound;
+      var scalingRatio = this.props.inverseScalingFunction(value, this.props.max);
+      return ratio / scalingRatio * this.state.upperBound;
     },
 
     // calculates the value corresponding to a given pixel offset, i.e. the inverse of `_calcOffset`.
     _calcValue: function (offset) {
+      var width = this.props.max - this.props.min;
       var ratio = offset / this.state.upperBound;
-      return ratio * (this.props.max - this.props.min) + this.props.min;
+      var scalingRatio = this.props.scalingFunction(offset, this.props.max);
+      return ratio / scalingRatio * width + this.props.min;
     },
 
     _buildHandleStyle: function (offset, i) {
@@ -504,10 +516,11 @@
       var length = value.length;
       var oldValue = value[index];
 
+      var width = (props.max - props.min);
       var diffPosition = position - state.startPosition;
       if (props.invert) diffPosition *= -1;
 
-      var diffValue = diffPosition / (state.sliderLength - state.handleSize) * (props.max - props.min);
+      var diffValue = diffPosition / (state.sliderLength - state.handleSize) * width;
       var newValue = this._trimAlignValue(state.startValue + diffValue);
 
       var minDistance = props.minDistance;
@@ -530,6 +543,7 @@
         }
       }
 
+      newValue = Math.ceil(props.scalingFunction(newValue, props.max) * width + props.min);
       value[index] = newValue;
 
       // if "pearling" is enabled, let the current handle push the pre- and succeeding handles.
